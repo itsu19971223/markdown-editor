@@ -20,14 +20,6 @@ Copy rendered HTML or Markdown
 ## Screenshots
 
 
-Add screenshots of your application here.
-text
-screenshots/
-├── editor.png
-├── preview.png
-└── dark-mode.png
-
-
 ## Demo
 
 
@@ -39,38 +31,8 @@ Live Demo: https://your-demo-url.com
 
 HTML5
 CSS3
-JavaScript (ES6+)
-Optional technologies:
-
-
-React
-TypeScript
-Tailwind CSS
-Vite
-Marked.js
-DOMPurify
-## Installation
-
-
-Clone the repository:
-bash
-git clone https://github.com/yourusername/markdown-text-editor.git
-
-
-Navigate to the project directory:
-bash
-cd markdown-text-editor
-
-
-Install dependencies:
-bash
-npm install
-
-
-Start the development server:
-bash
-npm run dev
-
+JavaScript 
+Python
 
 ## Usage
 
@@ -99,34 +61,6 @@ This is *italic* text.
 
 https://github.com
 
-
-## Project Structure
-text
-markdown-text-editor/
-│
-├── public/
-├── src/
-│   ├── components/
-│   ├── styles/
-│   ├── utils/
-│   ├── App.js
-│   └── main.js
-│
-├── package.json
-├── README.md
-└── LICENSE
-
-
-## Future Improvements
-
-
-Collaborative editing
-Cloud synchronization
-Custom themes
-AI-powered writing assistance
-Image drag-and-drop support
-Markdown templates
-PDF export
 ## Contributing
 
 
