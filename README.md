@@ -17,8 +17,6 @@ Responsive design for desktop and mobile devices
 Keyboard shortcuts
 Syntax highlighting
 Copy rendered HTML or Markdown
-## Screenshots
-
 
 ## Demo
 
