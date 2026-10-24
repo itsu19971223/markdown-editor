@@ -1,5 +1,5 @@
 # Markdown-editor
-<img width="256" height="256" alt="download" src="https://github.com/user-attachments/assets/1bbb3087-68ca-4b44-b586-a8da6cd3d127" />
+<p><img width="256" height="256" alt="download" src="https://github.com/user-attachments/assets/1bbb3087-68ca-4b44-b586-a8da6cd3d127" /></p>
 
 A fast, lightweight, and user-friendly web-based Markdown editor that allows users to write, preview, and export Markdown documents in real time.
 
