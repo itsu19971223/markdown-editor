@@ -91,4 +91,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Author
 
 
-Created by itsu19971223, uSER12157 and 123gamer911
+Created by itsu19971223(frontend), uSER12157(backend) and 123gamer911(backend)
