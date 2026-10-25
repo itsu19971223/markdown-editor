@@ -27,9 +27,9 @@ Live Demo: https://your-demo-url.com
 ## Built With
 
 
-HTML5
-CSS3
-JavaScript 
+HTML5,
+CSS3,
+JavaScript and 
 Python
 
 ## Usage
