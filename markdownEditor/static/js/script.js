@@ -1,25 +1,53 @@
 const mdWriting = document.getElementById("markdown-input");
 const mdReading = document.querySelector(".reading-interface");
 
+// 1. Strict HTML and Attribute Escaping (Prevents XSS)
 const escHtml = (text) => {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/'/g, "&#039;");
 };
 
+const sanitizeUrl = (url) => {
+  const trimmed = url.trim();
+  // Block javascript:, data:, and vbscript: protocols
+  if (/^(javascript|data|vbscript):/i.test(trimmed)) {
+    return "about:blank";
+  }
+  return trimmed;
+};
+
+// 2. Safer Inline Markdown Rendering
 const renderInlineMarkdown = (text) => {
   let html = escHtml(text);
 
-  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  html = html.replace(/(^|[\s(])((https?:\/\/)[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
-  html = html.replace(/(\*\*|__)(.+?)\1/g, "<strong>$2</strong>");
-  html = html.replace(/(\*|_)(.+?)\1/g, "<em>$2</em>");
-  html = html.replace(/~~(.+?)~~/g, "<del>$1</del>");
+  // Inline Code
+  html = html.replace(/`([^`]+)`/g, "<code>\$1</code>");
+
+  // Images
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+    return `<img src="${sanitizeUrl(src)}" alt="${alt}" />`;
+  });
+
+  // Explicit Markdown Links
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+\vert{}\/[^\s)]+)\)/g, (match, label, href) => {
+    return `<a href="${sanitizeUrl(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  });
+
+  // Plain Text URL Auto-linking (Avoids touching already processed <a> tags)
+  html = html.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (match, space, url) => {
+    // Basic check to see if we are inside an HTML tag attribute
+    if (/href=text|src=/i.test(space)) return match;
+    return `${space}<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+
+  // Bold, Italics, and Strikethrough
+  html = html.replace(/(\*\*|__)(.+?)\1/g, "<strong>\$2</strong>");
+  html = html.replace(/(\*|_)(.+?)\1/g, "<em>\$2</em>");
+  html = html.replace(/~~(.+?)~~/g, "<del>\$1</del>");
 
   return html;
 };
@@ -28,7 +56,7 @@ const splitTableRow = (row) => {
   return row
     .trim()
     .replace(/^\|/, "")
-    .replace(/\|$/, "")
+    .replace(/\|\$/, "")
     .split("|")
     .map((cell) => cell.trim());
 };
@@ -37,22 +65,19 @@ const renderTable = (headerRow, bodyRows) => {
   const headerHtml = headerRow
     .map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`)
     .join("");
-
+    
   const bodyHtml = bodyRows
-    .map(
-      (row) =>
-        `<tr>${row
-          .map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`)
-          .join("")}</tr>`
-    )
+    .map((row) => `<tr>${row.map((cell) => `<td>\${renderInlineMarkdown(cell)}</td>`).join("")}</tr>`)
     .join("");
-
+    
   return `<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
 };
 
+// 3. Robust Block-Level Compiler
 const convMd = (text) => {
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(\(/\r\)?\n/);
   const htmlLines = [];
+  
   let codeBuffer = [];
   let listItems = [];
   let listType = null;
@@ -67,42 +92,27 @@ const convMd = (text) => {
   };
 
   const flushList = () => {
-    if (!listItems.length) {
-      return;
-    }
-
+    if (!listItems.length) return;
     const tag = listType === "ordered" ? "ol" : "ul";
-    htmlLines.push(
-      `<${tag}>${listItems
-        .map((item) => `<li>${renderInlineMarkdown(item)}</li>`)
-        .join("")}</${tag}>`
-    );
+    htmlLines.push(`<${tag}>${listItems.map((item) => `<li>\${renderInlineMarkdown(item)}</li>`).join("")}</${tag}>`);
     listItems = [];
     listType = null;
   };
 
   const flushCodeBlock = () => {
-    if (!codeBuffer.length) {
-      return;
-    }
-
+    if (!codeBuffer.length) return;
     htmlLines.push(`<pre><code>${escHtml(codeBuffer.join("\n"))}</code></pre>`);
     codeBuffer = [];
   };
 
-  for (let i = 0; i < lines.length; i += 1) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmed = line.trim();
 
-    if (line.trim() === "") {
+    // Code blocks take absolute priority
+    if (trimmed.startsWith("```")) {
       flushParagraph();
       flushList();
-      continue;
-    }
-
-    if (line.trim().startsWith("```")) {
-      flushParagraph();
-      flushList();
-
       if (inCodeBlock) {
         flushCodeBlock();
         inCodeBlock = false;
@@ -117,29 +127,38 @@ const convMd = (text) => {
       continue;
     }
 
+    // Blank lines clear structural layouts
+    if (trimmed === "") {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    // Blockquotes
     if (line.startsWith(">")) {
       flushParagraph();
       flushList();
       const quoteLines = [];
       while (i < lines.length && lines[i].startsWith(">")) {
         quoteLines.push(lines[i].replace(/^>\s?/, ""));
-        i += 1;
+        i++;
       }
-      i -= 1;
-      htmlLines.push(`<blockquote>${renderInlineMarkdown(quoteLines.join(" "))}</blockquote>`);
+      i--; // Step back to keep loop accurate
+      htmlLines.push(`<blockquote>${convMd(quoteLines.join("\n"))}</blockquote>`);
       continue;
     }
 
+    // Headings
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
       flushParagraph();
       flushList();
       const level = headingMatch[1].length;
-      const headingText = headingMatch[2];
-      htmlLines.push(`<h${level}>${renderInlineMarkdown(headingText)}</h${level}>`);
+      htmlLines.push(`<h${level}>${renderInlineMarkdown(headingMatch[2])}</h${level}>`);
       continue;
     }
 
+    // Ordered Lists
     const orderedListMatch = line.match(/^\d+\.\s+(.*)$/);
     if (orderedListMatch) {
       flushParagraph();
@@ -151,6 +170,7 @@ const convMd = (text) => {
       continue;
     }
 
+    // Unordered Lists
     const unorderedListMatch = line.match(/^[-*+]\s+(.*)$/);
     if (unorderedListMatch) {
       flushParagraph();
@@ -162,6 +182,7 @@ const convMd = (text) => {
       continue;
     }
 
+    // Tables
     if (line.includes("|") && i + 1 < lines.length && /^\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(lines[i + 1].trim())) {
       flushParagraph();
       flushList();
@@ -170,32 +191,29 @@ const convMd = (text) => {
 
       if (headerRow.length && separatorRow.length === headerRow.length) {
         const rows = [];
-        i += 1;
-        for (let j = i + 1; j < lines.length; j += 1) {
-          if (!lines[j].includes("|")) {
-            break;
-          }
-          rows.push(splitTableRow(lines[j]));
-          i = j;
+        i += 1; // skip separator line
+        while (i + 1 < lines.length && lines[i + 1].includes("|") && !/^\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(lines[i + 1].trim())) {
+          i++;
+          rows.push(splitTableRow(lines[i]));
         }
-
         htmlLines.push(renderTable(headerRow, rows));
         continue;
       }
     }
 
+    // Falling back to standard paragraph text
     paragraphBuffer.push(line);
   }
 
+  // Final clean up flushes
   flushParagraph();
   flushList();
-  if (inCodeBlock) {
-    flushCodeBlock();
-  }
+  if (inCodeBlock) flushCodeBlock();
 
   return htmlLines.join("");
 };
 
+// 4. Input Event Listener
 if (mdWriting && mdReading) {
   mdWriting.addEventListener("input", () => {
     mdReading.innerHTML = convMd(mdWriting.value);
