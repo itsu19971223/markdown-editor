@@ -91,4 +91,5 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Author
 
 
-Created by itsu19971223(frontend), uSER12157(backend) and 123gamer911(backend)
+Created by itsu19971223(HTML,
+JavaScript), uSER12157(Python) and 123gamer911(Python, CSS)
