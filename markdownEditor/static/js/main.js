@@ -1,7 +1,6 @@
 const mdWriting = document.getElementById("markdown-input");
 const mdReading = document.querySelector(".reading-interface");
 
-// 1. Strict HTML and Attribute Escaping (Prevents XSS)
 const escHtml = (text) => {
   return text
     .replace(/&/g, "&amp;")
@@ -13,38 +12,30 @@ const escHtml = (text) => {
 
 const sanitizeUrl = (url) => {
   const trimmed = url.trim();
-  // Block javascript:, data:, and vbscript: protocols
   if (/^(javascript|data|vbscript):/i.test(trimmed)) {
     return "about:blank";
   }
   return trimmed;
 };
 
-// 2. Safer Inline Markdown Rendering
 const renderInlineMarkdown = (text) => {
   let html = escHtml(text);
 
-  // Inline Code
   html = html.replace(/`([^`]+)`/g, "<code>\$1</code>");
 
-  // Images
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
     return `<img src="${sanitizeUrl(src)}" alt="${alt}" />`;
   });
 
-  // Explicit Markdown Links
   html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+\vert{}\/[^\s)]+)\)/g, (match, label, href) => {
     return `<a href="${sanitizeUrl(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
   });
 
-  // Plain Text URL Auto-linking (Avoids touching already processed <a> tags)
   html = html.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (match, space, url) => {
-    // Basic check to see if we are inside an HTML tag attribute
     if (/href=text|src=/i.test(space)) return match;
     return `${space}<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer">${url}</a>`;
   });
 
-  // Bold, Italics, and Strikethrough
   html = html.replace(/(\*\*|__)(.+?)\1/g, "<strong>\$2</strong>");
   html = html.replace(/(\*|_)(.+?)\1/g, "<em>\$2</em>");
   html = html.replace(/~~(.+?)~~/g, "<del>\$1</del>");
@@ -58,7 +49,7 @@ const splitTableRow = (row) => {
     .replace(/^\|/, "")
     .replace(/\|\$/, "")
     .split("|")
-    .map((cell) => cell.trim());
+    .map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join("")}</tr>`)
 };
 
 const renderTable = (headerRow, bodyRows) => {
@@ -73,7 +64,6 @@ const renderTable = (headerRow, bodyRows) => {
   return `<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
 };
 
-// 3. Robust Block-Level Compiler
 const convMd = (text) => {
   const lines = text.split(/\r?\n/);
   const htmlLines = [];
@@ -109,7 +99,6 @@ const convMd = (text) => {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Code blocks take absolute priority
     if (trimmed.startsWith("```")) {
       flushParagraph();
       flushList();
@@ -127,14 +116,12 @@ const convMd = (text) => {
       continue;
     }
 
-    // Blank lines clear structural layouts
     if (trimmed === "") {
       flushParagraph();
       flushList();
       continue;
     }
 
-    // Blockquotes
     if (line.startsWith(">")) {
       flushParagraph();
       flushList();
@@ -143,12 +130,11 @@ const convMd = (text) => {
         quoteLines.push(lines[i].replace(/^>\s?/, ""));
         i++;
       }
-      i--; // Step back to keep loop accurate
+      i--; 
       htmlLines.push(`<blockquote>${convMd(quoteLines.join("\n"))}</blockquote>`);
       continue;
     }
 
-    // Headings
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
       flushParagraph();
@@ -158,7 +144,6 @@ const convMd = (text) => {
       continue;
     }
 
-    // Ordered Lists
     const orderedListMatch = line.match(/^\d+\.\s+(.*)$/);
     if (orderedListMatch) {
       flushParagraph();
@@ -170,7 +155,6 @@ const convMd = (text) => {
       continue;
     }
 
-    // Unordered Lists
     const unorderedListMatch = line.match(/^[-*+]\s+(.*)$/);
     if (unorderedListMatch) {
       flushParagraph();
@@ -182,7 +166,6 @@ const convMd = (text) => {
       continue;
     }
 
-    // Tables
     if (line.includes("|") && i + 1 < lines.length && /^\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(lines[i + 1].trim())) {
       flushParagraph();
       flushList();
@@ -191,7 +174,7 @@ const convMd = (text) => {
 
       if (headerRow.length && separatorRow.length === headerRow.length) {
         const rows = [];
-        i += 1; // skip separator line
+        i += 1; 
         while (i + 1 < lines.length && lines[i + 1].includes("|") && !/^\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(lines[i + 1].trim())) {
           i++;
           rows.push(splitTableRow(lines[i]));
@@ -201,11 +184,9 @@ const convMd = (text) => {
       }
     }
 
-    // Falling back to standard paragraph text
     paragraphBuffer.push(line);
   }
 
-  // Final clean up flushes
   flushParagraph();
   flushList();
   if (inCodeBlock) flushCodeBlock();
@@ -213,7 +194,6 @@ const convMd = (text) => {
   return htmlLines.join("");
 };
 
-// 4. Input Event Listener
 if (mdWriting && mdReading) {
   mdWriting.addEventListener("input", () => {
     mdReading.innerHTML = convMd(mdWriting.value);
