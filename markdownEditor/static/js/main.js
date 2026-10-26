@@ -75,7 +75,7 @@ const renderTable = (headerRow, bodyRows) => {
 
 // 3. Robust Block-Level Compiler
 const convMd = (text) => {
-  const lines = text.split(\(/\r\)?\n/);
+  const lines = text.split(/\r?\n/);
   const htmlLines = [];
   
   let codeBuffer = [];
