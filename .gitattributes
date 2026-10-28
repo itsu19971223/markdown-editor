@@ -1,0 +1,6 @@
+# Force GitHub to detect SQL files
+*.sql linguist-detectable=true
+
+# If you have vendor/built JS files causing issues, ignore them:
+dist/* linguist-vendored
+build/* linguist-vendored
