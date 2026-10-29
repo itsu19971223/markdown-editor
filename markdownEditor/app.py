@@ -37,26 +37,51 @@ def editor():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
+        is_json = request.is_json
+        data = request.get_json(silent=True) if is_json else request.form
+        if not hasattr(data, 'get'):
+            if is_json:
+                return jsonify(message='Please provide a valid name, email, and password.'), 400
+            flash('Please provide a valid name, email, and password.')
+            return redirect(url_for('signup'))
 
+        name = data.get('name', '')
+        email = data.get('email', '')
+        password = data.get('password', '')
+        if not all(isinstance(value, str) for value in (name, email, password)):
+            if is_json:
+                return jsonify(message='Please provide a valid name, email, and password.'), 400
+            flash('Please provide a valid name, email, and password.')
+            return redirect(url_for('signup'))
+
+        name = name.strip()
+        email = email.strip()
+        if not name or not email or not password:
+            if is_json:
+                return jsonify(message='Name, email, and password are required.'), 400
+            flash('Name, email, and password are required.')
+            return redirect(url_for('signup'))
 
         hashed_password = generate_password_hash(password, method='scrypt')
-
-
         try:
             conn = get_db_connection()
-            conn.execute(
-                'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-                (name, email, hashed_password)
-            )
-            conn.commit()
-            conn.close()
-            return redirect(url_for('login'))
+            try:
+                conn.execute(
+                    'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
+                    (name, email, hashed_password)
+                )
+                conn.commit()
+            finally:
+                conn.close()
         except sqlite3.IntegrityError:
-            return "Email already registered!"
-            
+            if is_json:
+                return jsonify(message='Email already registered.'), 409
+            flash('Email already registered.')
+            return redirect(url_for('signup'))
+
+        if is_json:
+            return jsonify(redirectTo=url_for('login')), 201
+        return redirect(url_for('login'))
     return render_template('signup.html')
 
 
