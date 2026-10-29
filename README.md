@@ -29,7 +29,8 @@ Live Demo: wait for a while... Building in progress!
 
 HTML5,
 CSS3,
-JavaScript and 
+JavaScript,
+SQL 
 Python 3.14.8
 
 ## Usage
