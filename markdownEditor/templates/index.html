@@ -4,20 +4,116 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Markdown Editor</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="../static/css/style.css?v=3" />
   </head>
-  <body>
-    <div class="md-editor-container">
-      <div class="input-intface">
-        <textarea
-          id="markdown-input"
-          placeholder="Markdown here..."
-        ></textarea>
+  <body class="editor-page">
+    <header class="editor-header">
+      <a class="editor-home-link" href="index.html">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z"
+          />
+        </svg>
+        <span>Go home</span>
+      </a>
+      <h1 class="editor-title">Markdown Editor</h1>
+      <div class="editor-actions">
+        <form action="{{ url_for('logout') }}" method="post">
+          <button class="sign-out-button" type="submit">Sign out</button>
+        </form>
+        <div class="profile-menu" data-profile-menu>
+          <button
+            class="profile-button"
+            type="button"
+            aria-label="Open account menu"
+            aria-expanded="false"
+            aria-controls="profile-dropdown"
+            data-profile-toggle
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21a8 8 0 0 1 16 0" />
+            </svg>
+          </button>
+          <section class="profile-dropdown" id="profile-dropdown" hidden>
+            <div class="profile-heading">
+              <span class="profile-avatar" aria-hidden="true"
+                >{{ current_user.name[0]|upper }}</span
+              >
+              <div>
+                <strong>{{ current_user.name }}</strong>
+                <span>{{ current_user.email }}</span>
+              </div>
+            </div>
+            <form
+              action="{{ url_for('update_account') }}"
+              method="post"
+              class="account-form"
+            >
+              <h2>Edit account</h2>
+              <label>
+                Name
+                <input
+                  type="text"
+                  name="name"
+                  value="{{ current_user.name }}"
+                  required
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  type="email"
+                  name="email"
+                  value="{{ current_user.email }}"
+                  required
+                />
+              </label>
+              <label>
+                Current password <span>(needed to change password)</span>
+                <input
+                  type="password"
+                  name="current_password"
+                  autocomplete="current-password"
+                />
+              </label>
+              <label>
+                New password <span>(leave blank to keep current)</span>
+                <input
+                  type="password"
+                  name="new_password"
+                  autocomplete="new-password"
+                />
+              </label>
+              <button class="save-account-button" type="submit">
+                Save changes
+              </button>
+            </form>
+          </section>
+        </div>
       </div>
+    </header>
+    {% with messages = get_flashed_messages() %} {% if messages %}
+    <div class="editor-notices" role="status">
+      {% for message in messages %}
+      <p>{{ message }}</p>
+      {% endfor %}
     </div>
-    <div class="md-reader-container">
-      <div class="reading-interface"></div>
-    </div>
-    <script src="main.js"></script>
+    {% endif %} {% endwith %}
+    <main class="editor-workspace">
+      <section class="md-editor-container" aria-label="Markdown editor">
+        <div class="input-intface">
+          <textarea
+            id="markdown-input"
+            placeholder="Markdown here..."
+            aria-label="Markdown input"
+          ></textarea>
+        </div>
+      </section>
+      <section class="md-reader-container" aria-label="Markdown preview">
+        <div class="reading-interface"></div>
+      </section>
+    </main>
+    <script src="../static/js/main.js?v=3" defer></script>
   </body>
 </html>
