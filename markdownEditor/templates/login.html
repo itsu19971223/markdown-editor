@@ -7,8 +7,10 @@
     <link rel="stylesheet" href="../static/css/style.css" />
   </head>
   <body class="auth-page">
-    <div class="logIn">
-      <form action="{{ url_for('login') }}" method="POST">
+    <main class="logIn">
+      <h1>Welcome back</h1>
+      <p class="auth-intro">Log in to pick up right where you left off.</p>
+      <form action="<a href="{{ url_for('login') }}"></form>
         <input type="email" name="email" placeholder="Email Address" required />
         <input
           type="password"
@@ -16,10 +18,12 @@
           placeholder="Password"
           required
         />
-        <button type="submit">login</button>
+        <button type="submit">Log in</button>
       </form>
-    </div>
+      <p class="auth-switch">
+        New here? <a href="signup.html">Create an account</a>
+      </p>
+    </main>
     <script src="../static/js/main.js"></script>
   </body>
 </html>
-
