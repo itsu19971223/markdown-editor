@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown Editor Demo</title>
+    <link rel="stylesheet" href="../static/css/style.css?v=4" />
+  </head>
+  <body class="editor-page">
+    <header class="editor-header">
+      <a class="editor-home-link" href="home.html">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z"
+          />
+        </svg>
+        <span>Go home</span>
+      </a>
+      <h1 class="editor-title">Markdown Editor Demo</h1>
+      <nav class="demo-actions" aria-label="Account">
+        <a href="login.html">Log in</a>
+        <a href="signup.html">Sign up</a>
+      </nav>
+    </header>
+    <main class="editor-workspace">
+      <section class="md-editor-container" aria-label="Markdown editor">
+        <div class="input-intface">
+          <textarea
+            id="markdown-input"
+            placeholder="Markdown here..."
+            aria-label="Markdown input"
+          >
+# Try the Markdown editor
+
+Type on the left and see the preview update on the right. You can delete this text and try on your own!
+
+**Bold**, *italic*, and `inline code`
+</textarea
+          >
+        </div>
+      </section>
+      <section class="md-reader-container" aria-label="Markdown preview">
+        <div class="reading-interface"></div>
+      </section>
+    </main>
+    <script src="../static/js/main.js?v=4" defer></script>
+  </body>
+</html>
