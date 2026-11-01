@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login to MarkDown Editor</title>
-    <link rel="stylesheet" href="../static/css/style.css" />
+    <link rel="stylesheet" href="../static/css/style.css?v=3" />
   </head>
   <body class="auth-page">
     <main class="logIn">
       <h1>Welcome back</h1>
       <p class="auth-intro">Log in to pick up right where you left off.</p>
-      <form action="<a href="{{ url_for('login') }}"></form>
+      <form action="{{ url_for('login') }}" method="POST">
         <input type="email" name="email" placeholder="Email Address" required />
         <input
           type="password"
@@ -24,6 +24,9 @@
         New here? <a href="signup.html">Create an account</a>
       </p>
     </main>
-    <script src="../static/js/main.js"></script>
+    <footer class="site-footer">
+      🄫2026 itsu19971223, uSER12157, 123Gamer911
+    </footer>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   </body>
 </html>
