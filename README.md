@@ -93,4 +93,6 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 
 Created by itsu19971223(JavaScript, SQL), uSER12157(Python) and 123gamer911(HTML, CSS)
+
+
 Note: Most of the commiter is itsu19971223, but he is the project owner and the others are new to GitHub and doesn't know how to commit. uSER12157 wrote Python Script and 123gamer911 wrote the front-end code.
