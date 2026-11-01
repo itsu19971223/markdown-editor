@@ -1,9 +1,17 @@
-import flask
 import os
 import sqlite3
-from flask import Flask, jsonify, render_template, request, redirect, session, url_for, flash
-from werkzeug.security import generate_password_hash, check_password_hash
 
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(32)
@@ -17,9 +25,30 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
-    with open('schema.sql', 'r') as f:
+    with open('schema.sql', 'r', encoding='utf-8') as f:
         conn.executescript(f.read())
     conn.close()
+
+
+def get_current_user():
+    user_id = session.get('user_id')
+    if user_id is None:
+        return None
+
+    conn = get_db_connection()
+    try:
+        user = conn.execute(
+            'SELECT id, name, email FROM users WHERE id = ?',
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if user is None:
+        session.clear()
+        return None
+
+    return user
 
 
 @app.route('/')
@@ -39,18 +68,8 @@ def demo():
 
 @app.route('/editor')
 def editor():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    conn = get_db_connection()
-    try:
-        user = conn.execute(
-            'SELECT id, name, email FROM users WHERE id = ?',
-            (session['user_id'],)
-        ).fetchone()
-    finally:
-        conn.close()
+    user = get_current_user()
     if user is None:
-        session.clear()
         return redirect(url_for('login'))
     return render_template('index.html', current_user=user)
 
@@ -63,46 +82,50 @@ def logout():
 
 @app.route('/account', methods=['POST'])
 def update_account():
-    if 'user_id' not in session:
+    user = get_current_user()
+    if user is None:
         return redirect(url_for('login'))
 
     name = request.form.get('name', '').strip()
     email = request.form.get('email', '').strip()
     current_password = request.form.get('current_password', '')
     new_password = request.form.get('new_password', '')
+
     if not name or not email:
         flash('Name and email are required.')
         return redirect(url_for('editor'))
 
     conn = get_db_connection()
     try:
-        user = conn.execute(
+        existing_user = conn.execute(
             'SELECT password_hash FROM users WHERE id = ?',
-            (session['user_id'],)
+            (session['user_id'],),
         ).fetchone()
-        if user is None:
+
+        if existing_user is None:
             session.clear()
             return redirect(url_for('login'))
 
         if new_password:
             if not current_password or not check_password_hash(
-                user['password_hash'], current_password
+                existing_user['password_hash'], current_password
             ):
                 flash('Enter your current password to change your password.')
                 return redirect(url_for('editor'))
+
             conn.execute(
                 'UPDATE users SET name = ?, email = ?, password_hash = ? WHERE id = ?',
                 (
                     name,
                     email,
                     generate_password_hash(new_password, method='scrypt'),
-                    session['user_id']
-                )
+                    session['user_id'],
+                ),
             )
         else:
             conn.execute(
                 'UPDATE users SET name = ?, email = ? WHERE id = ?',
-                (name, email, session['user_id'])
+                (name, email, session['user_id']),
             )
         conn.commit()
     except sqlite3.IntegrityError:
@@ -120,6 +143,7 @@ def signup():
     if request.method == 'POST':
         is_json = request.is_json
         data = request.get_json(silent=True) if is_json else request.form
+
         if not hasattr(data, 'get'):
             if is_json:
                 return jsonify(message='Please provide a valid name, email, and password.'), 400
@@ -129,6 +153,7 @@ def signup():
         name = data.get('name', '')
         email = data.get('email', '')
         password = data.get('password', '')
+
         if not all(isinstance(value, str) for value in (name, email, password)):
             if is_json:
                 return jsonify(message='Please provide a valid name, email, and password.'), 400
@@ -137,6 +162,7 @@ def signup():
 
         name = name.strip()
         email = email.strip()
+
         if not name or not email or not password:
             if is_json:
                 return jsonify(message='Name, email, and password are required.'), 400
@@ -149,7 +175,7 @@ def signup():
             try:
                 conn.execute(
                     'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-                    (name, email, hashed_password)
+                    (name, email, hashed_password),
                 )
                 conn.commit()
             finally:
@@ -163,15 +189,16 @@ def signup():
         if is_json:
             return jsonify(redirectTo=url_for('login')), 201
         return redirect(url_for('login'))
+
     return render_template('signup.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        data = request.get_json() if request.is_json else request.form
-        email = data.get('email', '').strip()
-        password = data.get('password', '')
+        data = request.get_json(silent=True) if request.is_json else request.form
+        email = (data.get('email', '') if hasattr(data, 'get') else '').strip()
+        password = data.get('password', '') if hasattr(data, 'get') else ''
 
         if not email or not password:
             if request.is_json:
@@ -179,11 +206,14 @@ def login():
             flash('Email and password are required.')
             return redirect(url_for('login'))
 
-
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
-        conn.close()
-
+        try:
+            user = conn.execute(
+                'SELECT * FROM users WHERE email = ?',
+                (email,),
+            ).fetchone()
+        finally:
+            conn.close()
 
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
@@ -196,11 +226,9 @@ def login():
         flash('Invalid email or password.')
         return redirect(url_for('login'))
 
-
     return render_template('login.html')
 
 
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
-    
