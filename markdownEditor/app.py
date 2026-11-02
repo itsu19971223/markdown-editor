@@ -138,6 +138,42 @@ def update_account():
     return redirect(url_for('editor'))
 
 
+@app.route('/account/delete', methods=['POST'])
+def delete_account():
+    user = get_current_user()
+    if user is None:
+        return redirect(url_for('login'))
+
+    password = request.form.get('password', '')
+    if not password:
+        flash('Enter your password to delete your account.')
+        return redirect(url_for('editor'))
+
+    conn = get_db_connection()
+    try:
+        existing_user = conn.execute(
+            'SELECT password_hash FROM users WHERE id = ?',
+            (session['user_id'],),
+        ).fetchone()
+
+        if existing_user is None:
+            session.clear()
+            return redirect(url_for('login'))
+
+        if not check_password_hash(existing_user['password_hash'], password):
+            flash('Incorrect password. Your account was not deleted.')
+            return redirect(url_for('editor'))
+
+        conn.execute('DELETE FROM users WHERE id = ?', (session['user_id'],))
+        conn.commit()
+    finally:
+        conn.close()
+
+    session.clear()
+    flash('Your account has been deleted.')
+    return redirect(url_for('index'))
+
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
