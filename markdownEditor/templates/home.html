@@ -4,7 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MarkDown Editor Home</title>
-    <link rel="stylesheet" href="/static/css/style.css" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
   </head>
   <body class="home-page">
     <main class="home-card">
@@ -12,14 +15,14 @@
       <h3>Less noise. More # hashes.</h3>
       <p>Write Markdown and see it rendered as you type</p>
       <nav class="home-links">
-        <a href="login.html">Log in</a>
-        <a href="signup.html">Sign up</a>
-        <a href="demo.html">Try demo</a>
+        <a href="{{ url_for('login') }}">Log in</a>
+        <a href="{{ url_for('signup') }}">Sign up</a>
+        <a href="{{ url_for('demo') }}">Try demo</a>
       </nav>
     </main>
     <footer class="site-footer">
       🄫2026 itsu19971223, uSER12157, 123Gamer911
     </footer>
-    <script src="/static/js/main.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   </body>
 </html>
