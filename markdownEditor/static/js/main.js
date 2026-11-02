@@ -236,6 +236,17 @@ const initializePage = () => {
     });
   }
 
+  const accountDeleteForm = document.querySelector(
+    "[data-account-delete-form]",
+  );
+  if (accountDeleteForm) {
+    accountDeleteForm.addEventListener("submit", (event) => {
+      if (!window.confirm("Permanently delete your account? This cannot be undone.")) {
+        event.preventDefault();
+      }
+    });
+  }
+
   const mdWriting = document.getElementById("markdown-input");
   const mdReading = document.querySelector(".reading-interface");
 
