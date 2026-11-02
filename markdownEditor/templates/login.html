@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login to MarkDown Editor</title>
-    <link rel="stylesheet" href="../static/css/style.css?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3" />
   </head>
   <body class="auth-page">
     <main class="logIn">
@@ -21,7 +21,7 @@
         <button type="submit">Log in</button>
       </form>
       <p class="auth-switch">
-        New here? <a href="signup.html">Create an account</a>
+        New here? <a href="{{ url_for('signup') }}">Create an account</a>
       </p>
     </main>
     <footer class="site-footer">
