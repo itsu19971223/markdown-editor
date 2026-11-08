@@ -31,7 +31,7 @@ HTML5,
 CSS3,
 JavaScript,
 SQL 
-Python 3.14.8
+Python 3.15.2
 
 ## Usage
 
