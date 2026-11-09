@@ -91,7 +91,6 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Author
 
-
 Created by itsu19971223(JavaScript, SQL), uSER12157(Python) and 123gamer911(HTML, CSS)
 
 - itsu19971223 specializes in HTML, CSS, JavaScript and SQL.
