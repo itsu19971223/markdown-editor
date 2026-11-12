@@ -27,11 +27,11 @@ Live Demo: wait for a while... Building in progress!
 ## Built With
 
 
-HTML5,
-CSS3,
+HTML,
+CSS,
 JavaScript,
 SQL 
-Python 3.15.2
+Python
 
 ## Usage
 
@@ -40,25 +40,6 @@ Python 3.15.2
 2. Start writing Markdown in the editor.
 3. View the rendered output in the preview panel.
 4. Save or export your work when finished.
-
-
-## Example
-markdown
-# Hello World
-
-
-This is **bold** text.
-
-
-This is *italic* text.
-
-
-- Item 1
-- Item 2
-- Item 3
-
-
-https://github.com
 
 ## Contributing
 
@@ -96,5 +77,3 @@ Created by itsu19971223(JavaScript, SQL), uSER12157(Python) and 123gamer911(HTML
 - itsu19971223 specializes in HTML, CSS, JavaScript and SQL.
 - 123gamer911 specializes in HTML and CSS.
 - uSER12157 specializes in Python.
-<!-- Note: Most of the committer is itsu19971223, but he is the project owner and the others are new to GitHub and doesn't know how to commit. uSER12157 wrote Python Script and 123gamer911 wrote the front-end code.
--->
