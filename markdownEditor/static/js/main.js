@@ -6,7 +6,6 @@ const escHtml = (text) => {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 };
-
 const sanitizeUrl = (url) => {
   const trimmed = url.trim();
   if (/^(javascript|data|vbscript):/i.test(trimmed)) {
@@ -57,7 +56,7 @@ const renderTable = (headerRow, bodyRows) => {
   const bodyHtml = bodyRows
     .map(
       (row) =>
-        `<tr>${row.map((cell) => `<td>\${renderInlineMarkdown(cell)}</td>`).join("")}</tr>`,
+        `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join("")}</tr>`,
     )
     .join("");
 
@@ -86,7 +85,7 @@ const convMd = (text) => {
     if (!listItems.length) return;
     const tag = listType === "ordered" ? "ol" : "ul";
     htmlLines.push(
-      `<${tag}>${listItems.map((item) => `<li>\${renderInlineMarkdown(item)}</li>`).join("")}</${tag}>`,
+      `<${tag}>${listItems.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join("")}</${tag}>`,
     );
     listItems = [];
     listType = null;
@@ -241,7 +240,11 @@ const initializePage = () => {
   );
   if (accountDeleteForm) {
     accountDeleteForm.addEventListener("submit", (event) => {
-      if (!window.confirm("Permanently delete your account? This cannot be undone.")) {
+      if (
+        !window.confirm(
+          "Permanently delete your account? This cannot be undone.",
+        )
+      ) {
         event.preventDefault();
       }
     });
