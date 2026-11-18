@@ -100,13 +100,12 @@ body {
 }
 
 .editor-header {
-  position: relative;
   z-index: 2;
-  display: flex;
+  display: grid;
   flex: 0 0 auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   min-height: 68px;
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
   padding: 10px 24px;
   border-bottom: 1px solid #e3e9e2;
@@ -160,19 +159,68 @@ body {
 }
 
 .editor-title {
-  position: absolute;
-  left: 50%;
   margin: 0;
   color: var(--color-ink);
   font-size: 1rem;
   font-weight: 650;
-  transform: translateX(-50%);
+  justify-self: center;
+  white-space: nowrap;
 }
 
 .editor-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-self: end;
+  min-width: 0;
+}
+
+.document-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-title-input,
+#download-format {
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid #dce5dc;
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.doc-title-input {
+  width: 130px;
+}
+
+.save-doc-button,
+.download-md-button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-accent);
+  border-radius: 9px;
+  background: var(--color-accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-doc-button:hover,
+.download-md-button:hover {
+  border-color: var(--color-accent-dark);
+  background: var(--color-accent-dark);
+}
+
+#save-status {
+  min-width: 46px;
+  color: var(--color-muted);
+  font-size: 0.76rem;
 }
 
 .demo-actions {
@@ -281,6 +329,67 @@ body {
   font-size: 0.85rem;
 }
 
+.saved-documents {
+  display: grid;
+  gap: 9px;
+  padding: 16px 0 14px;
+  border-bottom: 1px solid #edf0ec;
+}
+
+.saved-documents h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+#saved-documents-status {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.saved-documents-list {
+  display: grid;
+  max-height: 180px;
+  gap: 5px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-document-button {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #e3e9e2;
+  border-radius: 9px;
+  background: #fbfcfa;
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.saved-document-button:hover,
+.saved-document-button[aria-current="true"] {
+  border-color: #b8c8bc;
+  background: #f0f6ef;
+}
+
+.saved-document-title {
+  overflow: hidden;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-document-button small {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
 .account-form {
   display: grid;
   gap: 12px;
@@ -320,6 +429,8 @@ body {
 
 .account-form input:focus-visible,
 .editor-page button:focus-visible,
+.editor-page select:focus-visible,
+.doc-title-input:focus-visible,
 .editor-home-link:focus-visible {
   border-color: var(--color-accent);
   outline: 3px solid rgb(50 116 90 / 20%);
@@ -697,10 +808,36 @@ body {
   background: #f9faf7;
 }
 
+@media (max-width: 1080px) {
+  .editor-header {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "home title"
+      "actions actions";
+    row-gap: 8px;
+  }
+
+  .editor-home-link {
+    grid-area: home;
+  }
+
+  .editor-title {
+    grid-area: title;
+  }
+
+  .editor-actions {
+    grid-area: actions;
+    justify-self: stretch;
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 640px) {
   .editor-header {
-    flex-shrink: 0;
-    min-height: 60px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "home signout profile"
+      "controls controls controls";
     gap: 8px;
     padding: 8px 12px;
   }
@@ -709,11 +846,54 @@ body {
     display: none;
   }
 
+  .editor-actions {
+    display: contents;
+  }
+
+  .document-controls {
+    grid-area: controls;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .editor-actions > form {
+    grid-area: signout;
+  }
+
+  .editor-actions > .profile-menu {
+    grid-area: profile;
+  }
+
   .editor-home-link,
   .sign-out-button {
     min-height: 40px;
     padding: 0 10px;
     font-size: 0.84rem;
+  }
+
+  .document-controls {
+    gap: 5px;
+  }
+
+  .doc-title-input {
+    width: auto;
+    min-width: 48px;
+    flex: 1 1 auto;
+  }
+
+  #download-format {
+    width: 90px;
+    padding: 6px;
+  }
+
+  .save-doc-button,
+  .download-md-button {
+    padding: 0 8px;
+    font-size: 0.8rem;
+  }
+
+  #save-status {
+    display: none;
   }
 
   .demo-actions {
@@ -764,4 +944,20 @@ body {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+#export-btn {
+  appearance: none;
+  border: 2px solid transparent;
+  background-color: #347457;
+  color: #347457;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+#export-btn:hover {
+  background-color: #1b5e06;
 }
