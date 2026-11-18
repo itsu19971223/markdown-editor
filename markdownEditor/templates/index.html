@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Markdown Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=5" />
   </head>
   <body class="editor-page">
     <header class="editor-header">
@@ -18,6 +18,24 @@
       </a>
       <h1 class="editor-title">Markdown Editor</h1>
       <div class="editor-actions">
+        <div class="document-controls">
+          <input
+            type="text"
+            id="doc-title"
+            class="doc-title-input"
+            placeholder="Untitled"
+            aria-label="Document Title"
+            value="{{ document.title if document else '' }}"
+          />
+          <button type="button" id="save-doc-btn" class="save-doc-button">Save</button>
+          <span id="save-status" role="status" aria-live="polite"></span>
+          <select id="download-format" aria-label="Download format">
+            <option value="md">Markdown (.md)</option>
+            <option value="txt">Text (.txt)</option>
+            <option value="docx">Word (.docx)</option>
+          </select>
+          <button type="button" id="download-doc-btn" class="download-md-button">Download</button>
+        </div>
         <form action="{{ url_for('logout') }}" method="post">
           <button class="sign-out-button" type="submit">Sign out</button>
         </form>
@@ -45,6 +63,17 @@
                 <span>{{ current_user.email }}</span>
               </div>
             </div>
+            <section class="saved-documents" aria-labelledby="saved-documents-heading">
+              <h2 id="saved-documents-heading">Saved files</h2>
+              <p id="saved-documents-status" role="status" aria-live="polite">
+                Open this menu to view your saved files.
+              </p>
+              <ul
+                class="saved-documents-list"
+                id="saved-documents-list"
+                aria-label="Saved files"
+              ></ul>
+            </section>
             <form
               action="{{ url_for('update_account') }}"
               method="post"
@@ -109,8 +138,6 @@
               </button>
             </form>
           </section>
-        </div>
-      </div>
     </header>
     {% with messages = get_flashed_messages() %} {% if messages %}
     <div class="editor-notices" role="status">
@@ -126,7 +153,8 @@
             id="markdown-input"
             placeholder="Markdown here..."
             aria-label="Markdown input"
-          ></textarea>
+            data-document-id="{{ document.id if document else '' }}"
+          >{{ document.content if document else '' }}</textarea>
         </div>
       </section>
       <section class="md-reader-container" aria-label="Markdown preview">
@@ -134,6 +162,6 @@
       </section>
     </main>
     <footer class="site-footer">🄫2026 itsu19971223, uSER12157, 123Gamer911</footer>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=4" defer></script>  
   </body>
 </html>
