@@ -71,7 +71,129 @@ def editor():
     user = get_current_user()
     if user is None:
         return redirect(url_for('login'))
-    return render_template('index.html', current_user=user)
+
+    conn = get_db_connection()
+    try:
+        document = conn.execute(
+            'SELECT id, title, content FROM documents '
+            'WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
+            (user['id'],),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    return render_template(
+        'index.html',
+        current_user=user,
+        document=document,
+    )
+
+
+@app.route('/documents', methods=['POST'])
+def save_document():
+    user = get_current_user()
+    if user is None:
+        return jsonify(message='Please log in to save documents.'), 401
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(message='A valid document is required.'), 400
+
+    title = data.get('title')
+    content = data.get('content')
+    document_id = data.get('id')
+    if not isinstance(title, str) or not isinstance(content, str):
+        return jsonify(message='Document title and content must be text.'), 400
+
+    title = title.strip() or 'Untitled'
+    if len(title) > 200:
+        return (
+            jsonify(message='Document title must be 200 characters or fewer.'),
+            400,
+        )
+
+    conn = get_db_connection()
+    try:
+        if document_id is None or document_id == '':
+            cursor = conn.execute(
+                'INSERT INTO documents (user_id, title, content) VALUES (?, ?, ?)',
+                (user['id'], title, content),
+            )
+            document_id = cursor.lastrowid
+        else:
+            if (
+                isinstance(document_id, bool)
+                or not isinstance(document_id, int)
+                or document_id < 1
+            ):
+                return jsonify(message='Document ID is invalid.'), 400
+
+            cursor = conn.execute(
+                'UPDATE documents SET title = ?, content = ?, '
+                'updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+                (title, content, document_id, user['id']),
+            )
+            if cursor.rowcount == 0:
+                return jsonify(message='Document was not found.'), 404
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify(id=document_id, title=title), 200
+
+
+@app.route('/documents', methods=['GET'])
+def list_documents():
+    user = get_current_user()
+    if user is None:
+        return jsonify(message='Please log in to view saved documents.'), 401
+
+    conn = get_db_connection()
+    try:
+        documents = conn.execute(
+            'SELECT id, title, updated_at FROM documents '
+            'WHERE user_id = ? ORDER BY updated_at DESC, id DESC',
+            (user['id'],),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return jsonify(
+        documents=[
+            {
+                'id': document['id'],
+                'title': document['title'],
+                'updated_at': document['updated_at'],
+            }
+            for document in documents
+        ]
+    )
+
+
+@app.route('/documents/<int:document_id>', methods=['GET'])
+def get_document(document_id):
+    user = get_current_user()
+    if user is None:
+        return jsonify(message='Please log in to open saved documents.'), 401
+
+    conn = get_db_connection()
+    try:
+        document = conn.execute(
+            'SELECT id, title, content FROM documents '
+            'WHERE id = ? AND user_id = ?',
+            (document_id, user['id']),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if document is None:
+        return jsonify(message='Document was not found.'), 404
+
+    return jsonify(
+        id=document['id'],
+        title=document['title'],
+        content=document['content'],
+    )
 
 
 @app.route('/logout', methods=['POST'])
