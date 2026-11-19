@@ -646,7 +646,7 @@ const initializePage = () => {
         const result = await response.json();
 
         if (response.ok) {
-          window.location.href = result.redirectTo || "/editor";
+          window.location.href = result.redirectTo || "/dashboard";
         } else {
           alert(
             result.message || "Login failed. Please check your credentials.",
