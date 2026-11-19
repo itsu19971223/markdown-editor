@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard · Markdown Editor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6" />
+  </head>
+  <body class="dashboard-page">
+    <header class="dashboard-header">
+      <a class="brand" href="{{ url_for('dashboard') }}" aria-label="Markdown Editor dashboard">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span>Markdown Editor</span>
+      </a>
+      <div class="dashboard-header-actions">
+        <span class="welcome-user">{{ current_user.name }}</span>
+        <form action="{{ url_for('logout') }}" method="post">
+          <button class="button button-secondary" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+    <main class="dashboard-main">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="dashboard-notices" role="status">
+            {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      <section class="dashboard-welcome">
+        <div>
+          <p class="eyebrow">YOUR WORKSPACE</p>
+          <h1>Good to see you, {{ current_user.name }}.</h1>
+          <p class="dashboard-subtitle">Pick up where you left off, or start a fresh page.</p>
+        </div>
+        <a class="button button-primary new-document-button" href="{{ url_for('editor', new=1) }}">
+          <span aria-hidden="true">＋</span> New document
+        </a>
+      </section>
+      <section class="dashboard-files" aria-labelledby="saved-files-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="saved-files-heading">Your saved files</h2>
+            <p>{{ documents|length }} {{ 'file' if documents|length == 1 else 'files' }} in your workspace</p>
+          </div>
+        </div>
+        {% if documents %}
+          <ul class="dashboard-file-list">
+            {% for document in documents %}
+              <li>
+                <a class="dashboard-file" href="{{ url_for('editor', document_id=document.id) }}">
+                  <span class="file-icon" aria-hidden="true">MD</span>
+                  <span class="file-info">
+                    <strong>{{ document.title }}</strong>
+                    <small>Updated {{ document.updated_at }}</small>
+                  </span>
+                  <span class="file-open" aria-hidden="true">Open&nbsp; →</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty-files">
+            <span class="empty-file-icon" aria-hidden="true">✎</span>
+            <h3>No saved files yet</h3>
+            <p>Create a document and save it to see it here.</p>
+            <a class="button button-secondary" href="{{ url_for('editor', new=1) }}">Create your first document</a>
+          </div>
+        {% endif %}
+      </section>
+    </main>
+    <footer class="site-footer">© 2026 itsu19971223, uSER12157, 123Gamer911</footer>
+  </body>
+</html>
