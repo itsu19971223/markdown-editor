@@ -53,12 +53,37 @@ def get_current_user():
 
 @app.route('/')
 def index():
+    if get_current_user() is not None:
+        return redirect(url_for('dashboard'))
     return render_template('home.html')
 
 
 @app.route('/home.html')
 def home_page():
     return render_template('home.html')
+
+
+@app.route('/dashboard')
+def dashboard():
+    user = get_current_user()
+    if user is None:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    try:
+        documents = conn.execute(
+            'SELECT id, title, updated_at FROM documents '
+            'WHERE user_id = ? ORDER BY updated_at DESC, id DESC',
+            (user['id'],),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return render_template(
+        'dashboard.html',
+        current_user=user,
+        documents=documents,
+    )
 
 
 @app.route('/demo')
@@ -72,13 +97,26 @@ def editor():
     if user is None:
         return redirect(url_for('login'))
 
+    document_id = request.args.get('document_id', type=int)
     conn = get_db_connection()
     try:
-        document = conn.execute(
-            'SELECT id, title, content FROM documents '
-            'WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
-            (user['id'],),
-        ).fetchone()
+        if document_id is not None:
+            document = conn.execute(
+                'SELECT id, title, content FROM documents '
+                'WHERE id = ? AND user_id = ?',
+                (document_id, user['id']),
+            ).fetchone()
+            if document is None:
+                flash('That saved file could not be found.')
+                return redirect(url_for('dashboard'))
+        elif request.args.get('new'):
+            document = None
+        else:
+            document = conn.execute(
+                'SELECT id, title, content FROM documents '
+                'WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
+                (user['id'],),
+            ).fetchone()
     finally:
         conn.close()
 
@@ -376,8 +414,8 @@ def login():
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
             if request.is_json:
-                return jsonify(redirectTo=url_for('editor'))
-            return redirect(url_for('editor'))
+                return jsonify(redirectTo=url_for('dashboard'))
+            return redirect(url_for('dashboard'))
 
         if request.is_json:
             return jsonify(message='Invalid email or password.'), 401
