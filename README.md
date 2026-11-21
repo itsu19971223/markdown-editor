@@ -75,6 +75,6 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 Created by itsu19971223(JavaScript, SQL), uSER12157(Python) and 123gamer911(HTML, CSS)
 
-- itsu19971223 specializes in HTML, CSS, JavaScript and SQL.
+- itsu19971223 specializes in JavaScript and SQL.
 - 123gamer911 specializes in HTML and CSS.
 - uSER12157 specializes in Python.
