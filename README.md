@@ -21,7 +21,7 @@ Copy rendered HTML or Markdown
 ## Demo
 
 
-Live Demo: wait for a while... Building in progress!
+Live Demo: Building in progress!
 
 
 ## Built With
@@ -31,6 +31,7 @@ HTML,
 CSS,
 JavaScript,
 SQL 
+and
 Python
 
 ## Usage
