@@ -1,5 +1,8 @@
+
 import os
-import sqlite3
+
+import psycopg
+from psycopg.rows import dict_row
 
 from flask import (
     Flask,
@@ -11,36 +14,45 @@ from flask import (
     session,
     url_for,
 )
+from psycopg import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
+
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(32)
+
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
 
 
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    database_url = os.environ.get("DATABASE_URL")
 
+    if not database_url:
+        raise RuntimeError("DATABASE_URL environment variable is not set.")
 
-def init_db():
-    conn = get_db_connection()
-    with open('schema.sql', 'r', encoding='utf-8') as f:
-        conn.executescript(f.read())
-    conn.close()
+    return psycopg.connect(
+        database_url,
+        row_factory=dict_row
+    )
 
 
 def get_current_user():
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
+
     if user_id is None:
         return None
 
     conn = get_db_connection()
+
     try:
         user = conn.execute(
-            'SELECT id, name, email FROM users WHERE id = ?',
-            (user_id,),
+            """
+            SELECT id, name, email
+            FROM public.users
+            WHERE id = %s
+            """,
+            (user_id,)
         ).fetchone()
+
     finally:
         conn.close()
 
@@ -51,380 +63,589 @@ def get_current_user():
     return user
 
 
-@app.route('/')
+@app.route("/")
 def index():
     if get_current_user() is not None:
-        return redirect(url_for('dashboard'))
-    return render_template('home.html')
+        return redirect(url_for("dashboard"))
+
+    return render_template("home.html")
 
 
-@app.route('/home.html')
+@app.route("/home.html")
 def home_page():
-    return render_template('home.html')
+    return render_template("home.html")
 
 
-@app.route('/dashboard')
+@app.route("/dashboard")
 def dashboard():
     user = get_current_user()
+
     if user is None:
-        return redirect(url_for('login'))
+        return redirect(url_for("login"))
 
     conn = get_db_connection()
+
     try:
         documents = conn.execute(
-            'SELECT id, title, updated_at FROM documents '
-            'WHERE user_id = ? ORDER BY updated_at DESC, id DESC',
-            (user['id'],),
+            """
+            SELECT id, title, updated_at
+            FROM public.documents
+            WHERE user_id = %s
+            ORDER BY updated_at DESC, id DESC
+            """,
+            (user["id"],)
         ).fetchall()
+
     finally:
         conn.close()
 
     return render_template(
-        'dashboard.html',
+        "dashboard.html",
         current_user=user,
-        documents=documents,
+        documents=documents
     )
 
 
-@app.route('/demo')
+@app.route("/demo")
 def demo():
-    return render_template('demo.html')
+    return render_template("demo.html")
 
 
-@app.route('/editor')
+@app.route("/editor")
 def editor():
     user = get_current_user()
-    if user is None:
-        return redirect(url_for('login'))
 
-    document_id = request.args.get('document_id', type=int)
+    if user is None:
+        return redirect(url_for("login"))
+
+    document_id = request.args.get("document_id", type=int)
+
     conn = get_db_connection()
+
     try:
         if document_id is not None:
             document = conn.execute(
-                'SELECT id, title, content FROM documents '
-                'WHERE id = ? AND user_id = ?',
-                (document_id, user['id']),
+                """
+                SELECT id, title, content
+                FROM public.documents
+                WHERE id = %s AND user_id = %s
+                """,
+                (document_id, user["id"])
             ).fetchone()
+
             if document is None:
-                flash('That saved file could not be found.')
-                return redirect(url_for('dashboard'))
-        elif request.args.get('new'):
+                flash("That saved file could not be found.")
+                return redirect(url_for("dashboard"))
+
+        elif request.args.get("new"):
             document = None
+
         else:
             document = conn.execute(
-                'SELECT id, title, content FROM documents '
-                'WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1',
-                (user['id'],),
+                """
+                SELECT id, title, content
+                FROM public.documents
+                WHERE user_id = %s
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 1
+                """,
+                (user["id"],)
             ).fetchone()
+
     finally:
         conn.close()
 
     return render_template(
-        'index.html',
+        "index.html",
         current_user=user,
-        document=document,
+        document=document
     )
 
 
-@app.route('/documents', methods=['POST'])
+@app.route("/documents", methods=["POST"])
 def save_document():
     user = get_current_user()
+
     if user is None:
-        return jsonify(message='Please log in to save documents.'), 401
+        return jsonify(
+            message="Please log in to save documents."
+        ), 401
 
     data = request.get_json(silent=True)
+
     if not isinstance(data, dict):
-        return jsonify(message='A valid document is required.'), 400
+        return jsonify(
+            message="A valid document is required."
+        ), 400
 
-    title = data.get('title')
-    content = data.get('content')
-    document_id = data.get('id')
+    title = data.get("title")
+    content = data.get("content")
+    document_id = data.get("id")
+
     if not isinstance(title, str) or not isinstance(content, str):
-        return jsonify(message='Document title and content must be text.'), 400
+        return jsonify(
+            message="Document title and content must be text."
+        ), 400
 
-    title = title.strip() or 'Untitled'
+    title = title.strip() or "Untitled"
+
     if len(title) > 200:
-        return (
-            jsonify(message='Document title must be 200 characters or fewer.'),
-            400,
-        )
+        return jsonify(
+            message="Document title must be 200 characters or fewer."
+        ), 400
 
     conn = get_db_connection()
+
     try:
-        if document_id is None or document_id == '':
+        if document_id is None or document_id == "":
             cursor = conn.execute(
-                'INSERT INTO documents (user_id, title, content) VALUES (?, ?, ?)',
-                (user['id'], title, content),
+                """
+                INSERT INTO public.documents
+                    (user_id, title, content)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (user["id"], title, content)
             )
-            document_id = cursor.lastrowid
+
+            document_id = cursor.fetchone()["id"]
+
         else:
             if (
                 isinstance(document_id, bool)
                 or not isinstance(document_id, int)
                 or document_id < 1
             ):
-                return jsonify(message='Document ID is invalid.'), 400
+                return jsonify(
+                    message="Document ID is invalid."
+                ), 400
 
             cursor = conn.execute(
-                'UPDATE documents SET title = ?, content = ?, '
-                'updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-                (title, content, document_id, user['id']),
+                """
+                UPDATE public.documents
+                SET title = %s,
+                    content = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND user_id = %s
+                """,
+                (title, content, document_id, user["id"])
             )
+
             if cursor.rowcount == 0:
-                return jsonify(message='Document was not found.'), 404
+                return jsonify(
+                    message="Document was not found."
+                ), 404
+
         conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
     finally:
         conn.close()
 
-    return jsonify(id=document_id, title=title), 200
+    return jsonify(
+        id=document_id,
+        title=title
+    ), 200
 
 
-@app.route('/documents', methods=['GET'])
+@app.route("/documents", methods=["GET"])
 def list_documents():
     user = get_current_user()
+
     if user is None:
-        return jsonify(message='Please log in to view saved documents.'), 401
+        return jsonify(
+            message="Please log in to view saved documents."
+        ), 401
 
     conn = get_db_connection()
+
     try:
         documents = conn.execute(
-            'SELECT id, title, updated_at FROM documents '
-            'WHERE user_id = ? ORDER BY updated_at DESC, id DESC',
-            (user['id'],),
+            """
+            SELECT id, title, updated_at
+            FROM public.documents
+            WHERE user_id = %s
+            ORDER BY updated_at DESC, id DESC
+            """,
+            (user["id"],)
         ).fetchall()
+
     finally:
         conn.close()
 
     return jsonify(
         documents=[
             {
-                'id': document['id'],
-                'title': document['title'],
-                'updated_at': document['updated_at'],
+                "id": document["id"],
+                "title": document["title"],
+                "updated_at": document["updated_at"].isoformat()
             }
             for document in documents
         ]
     )
 
 
-@app.route('/documents/<int:document_id>', methods=['GET'])
+@app.route("/documents/<int:document_id>", methods=["GET"])
 def get_document(document_id):
     user = get_current_user()
+
     if user is None:
-        return jsonify(message='Please log in to open saved documents.'), 401
+        return jsonify(
+            message="Please log in to open saved documents."
+        ), 401
 
     conn = get_db_connection()
+
     try:
         document = conn.execute(
-            'SELECT id, title, content FROM documents '
-            'WHERE id = ? AND user_id = ?',
-            (document_id, user['id']),
+            """
+            SELECT id, title, content
+            FROM public.documents
+            WHERE id = %s AND user_id = %s
+            """,
+            (document_id, user["id"])
         ).fetchone()
+
     finally:
         conn.close()
 
     if document is None:
-        return jsonify(message='Document was not found.'), 404
+        return jsonify(
+            message="Document was not found."
+        ), 404
 
     return jsonify(
-        id=document['id'],
-        title=document['title'],
-        content=document['content'],
+        id=document["id"],
+        title=document["title"],
+        content=document["content"]
     )
 
 
-@app.route('/logout', methods=['POST'])
+@app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
-    return redirect(url_for('index'))
+
+    return redirect(url_for("index"))
 
 
-@app.route('/account', methods=['POST'])
+@app.route("/account", methods=["POST"])
 def update_account():
     user = get_current_user()
-    if user is None:
-        return redirect(url_for('login'))
 
-    name = request.form.get('name', '').strip()
-    email = request.form.get('email', '').strip()
-    current_password = request.form.get('current_password', '')
-    new_password = request.form.get('new_password', '')
+    if user is None:
+        return redirect(url_for("login"))
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
 
     if not name or not email:
-        flash('Name and email are required.')
-        return redirect(url_for('editor'))
+        flash("Name and email are required.")
+        return redirect(url_for("editor"))
 
     conn = get_db_connection()
+
     try:
         existing_user = conn.execute(
-            'SELECT password_hash FROM users WHERE id = ?',
-            (session['user_id'],),
+            """
+            SELECT password_hash
+            FROM public.users
+            WHERE id = %s
+            """,
+            (session["user_id"],)
         ).fetchone()
 
         if existing_user is None:
             session.clear()
-            return redirect(url_for('login'))
+            return redirect(url_for("login"))
 
         if new_password:
             if not current_password or not check_password_hash(
-                existing_user['password_hash'], current_password
+                existing_user["password_hash"],
+                current_password
             ):
-                flash('Enter your current password to change your password.')
-                return redirect(url_for('editor'))
+                flash("Enter your current password to change your password.")
+                return redirect(url_for("editor"))
 
             conn.execute(
-                'UPDATE users SET name = ?, email = ?, password_hash = ? WHERE id = ?',
+                """
+                UPDATE public.users
+                SET name = %s,
+                    email = %s,
+                    password_hash = %s
+                WHERE id = %s
+                """,
                 (
                     name,
                     email,
-                    generate_password_hash(new_password, method='scrypt'),
-                    session['user_id'],
-                ),
+                    generate_password_hash(
+                        new_password,
+                        method="scrypt"
+                    ),
+                    session["user_id"]
+                )
             )
+
         else:
             conn.execute(
-                'UPDATE users SET name = ?, email = ? WHERE id = ?',
-                (name, email, session['user_id']),
+                """
+                UPDATE public.users
+                SET name = %s,
+                    email = %s
+                WHERE id = %s
+                """,
+                (name, email, session["user_id"])
             )
+
         conn.commit()
-    except sqlite3.IntegrityError:
-        flash('That email address is already in use.')
-        return redirect(url_for('editor'))
+
+    except IntegrityError:
+        conn.rollback()
+        flash("That email address is already in use.")
+        return redirect(url_for("editor"))
+
+    except Exception:
+        conn.rollback()
+        raise
+
     finally:
         conn.close()
 
-    flash('Your account has been updated.')
-    return redirect(url_for('editor'))
+    flash("Your account has been updated.")
+
+    return redirect(url_for("editor"))
 
 
-@app.route('/account/delete', methods=['POST'])
+@app.route("/account/delete", methods=["POST"])
 def delete_account():
     user = get_current_user()
-    if user is None:
-        return redirect(url_for('login'))
 
-    password = request.form.get('password', '')
+    if user is None:
+        return redirect(url_for("login"))
+
+    password = request.form.get("password", "")
+
     if not password:
-        flash('Enter your password to delete your account.')
-        return redirect(url_for('editor'))
+        flash("Enter your password to delete your account.")
+        return redirect(url_for("editor"))
 
     conn = get_db_connection()
+
     try:
         existing_user = conn.execute(
-            'SELECT password_hash FROM users WHERE id = ?',
-            (session['user_id'],),
+            """
+            SELECT password_hash
+            FROM public.users
+            WHERE id = %s
+            """,
+            (session["user_id"],)
         ).fetchone()
 
         if existing_user is None:
             session.clear()
-            return redirect(url_for('login'))
+            return redirect(url_for("login"))
 
-        if not check_password_hash(existing_user['password_hash'], password):
-            flash('Incorrect password. Your account was not deleted.')
-            return redirect(url_for('editor'))
+        if not check_password_hash(
+            existing_user["password_hash"],
+            password
+        ):
+            flash("Incorrect password. Your account was not deleted.")
+            return redirect(url_for("editor"))
 
-        conn.execute('DELETE FROM users WHERE id = ?', (session['user_id'],))
+        conn.execute(
+            """
+            DELETE FROM public.users
+            WHERE id = %s
+            """,
+            (session["user_id"],)
+        )
+
         conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
     finally:
         conn.close()
 
     session.clear()
-    flash('Your account has been deleted.')
-    return redirect(url_for('index'))
+
+    flash("Your account has been deleted.")
+
+    return redirect(url_for("index"))
 
 
-@app.route('/signup', methods=['GET', 'POST'])
+@app.route("/signup", methods=["GET", "POST"])
 def signup():
-    if request.method == 'POST':
+    if request.method == "POST":
         is_json = request.is_json
-        data = request.get_json(silent=True) if is_json else request.form
 
-        if not hasattr(data, 'get'):
+        data = (
+            request.get_json(silent=True)
+            if is_json
+            else request.form
+        )
+
+        if not hasattr(data, "get"):
             if is_json:
-                return jsonify(message='Please provide a valid name, email, and password.'), 400
-            flash('Please provide a valid name, email, and password.')
-            return redirect(url_for('signup'))
+                return jsonify(
+                    message="Please provide a valid name, email, and password."
+                ), 400
 
-        name = data.get('name', '')
-        email = data.get('email', '')
-        password = data.get('password', '')
+            flash("Please provide a valid name, email, and password.")
+            return redirect(url_for("signup"))
 
-        if not all(isinstance(value, str) for value in (name, email, password)):
+        name = data.get("name", "")
+        email = data.get("email", "")
+        password = data.get("password", "")
+
+        if not all(
+            isinstance(value, str)
+            for value in (name, email, password)
+        ):
             if is_json:
-                return jsonify(message='Please provide a valid name, email, and password.'), 400
-            flash('Please provide a valid name, email, and password.')
-            return redirect(url_for('signup'))
+                return jsonify(
+                    message="Please provide a valid name, email, and password."
+                ), 400
+
+            flash("Please provide a valid name, email, and password.")
+            return redirect(url_for("signup"))
 
         name = name.strip()
         email = email.strip()
 
         if not name or not email or not password:
             if is_json:
-                return jsonify(message='Name, email, and password are required.'), 400
-            flash('Name, email, and password are required.')
-            return redirect(url_for('signup'))
+                return jsonify(
+                    message="Name, email, and password are required."
+                ), 400
 
-        hashed_password = generate_password_hash(password, method='scrypt')
-        try:
-            conn = get_db_connection()
-            try:
-                conn.execute(
-                    'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-                    (name, email, hashed_password),
-                )
-                conn.commit()
-            finally:
-                conn.close()
-        except sqlite3.IntegrityError:
-            if is_json:
-                return jsonify(message='Email already registered.'), 409
-            flash('Email already registered.')
-            return redirect(url_for('signup'))
+            flash("Name, email, and password are required.")
+            return redirect(url_for("signup"))
 
-        if is_json:
-            return jsonify(redirectTo=url_for('login')), 201
-        return redirect(url_for('login'))
-
-    return render_template('signup.html')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        data = request.get_json(silent=True) if request.is_json else request.form
-        email = (data.get('email', '') if hasattr(data, 'get') else '').strip()
-        password = data.get('password', '') if hasattr(data, 'get') else ''
-
-        if not email or not password:
-            if request.is_json:
-                return jsonify(message='Email and password are required.'), 400
-            flash('Email and password are required.')
-            return redirect(url_for('login'))
+        hashed_password = generate_password_hash(
+            password,
+            method="scrypt"
+        )
 
         conn = get_db_connection()
+
         try:
-            user = conn.execute(
-                'SELECT * FROM users WHERE email = ?',
-                (email,),
-            ).fetchone()
+            conn.execute(
+                """
+                INSERT INTO public.users
+                    (name, email, password_hash)
+                VALUES (%s, %s, %s)
+                """,
+                (name, email, hashed_password)
+            )
+
+            conn.commit()
+
+        except IntegrityError:
+            conn.rollback()
+
+            if is_json:
+                return jsonify(
+                    message="Email already registered."
+                ), 409
+
+            flash("Email already registered.")
+            return redirect(url_for("signup"))
+
+        except Exception:
+            conn.rollback()
+            raise
+
         finally:
             conn.close()
 
-        if user and check_password_hash(user['password_hash'], password):
-            session['user_id'] = user['id']
+        if is_json:
+            return jsonify(
+                redirectTo=url_for("login")
+            ), 201
+
+        return redirect(url_for("login"))
+
+    return render_template("signup.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        data = (
+            request.get_json(silent=True)
+            if request.is_json
+            else request.form
+        )
+
+        email = (
+            data.get("email", "")
+            if hasattr(data, "get")
+            else ""
+        ).strip()
+
+        password = (
+            data.get("password", "")
+            if hasattr(data, "get")
+            else ""
+        )
+
+        if not email or not password:
             if request.is_json:
-                return jsonify(redirectTo=url_for('dashboard'))
-            return redirect(url_for('dashboard'))
+                return jsonify(
+                    message="Email and password are required."
+                ), 400
+
+            flash("Email and password are required.")
+            return redirect(url_for("login"))
+
+        conn = get_db_connection()
+
+        try:
+            user = conn.execute(
+                """
+                SELECT *
+                FROM public.users
+                WHERE email = %s
+                """,
+                (email,)
+            ).fetchone()
+
+        finally:
+            conn.close()
+
+        if user and check_password_hash(
+            user["password_hash"],
+            password
+        ):
+            session.clear()
+            session["user_id"] = user["id"]
+
+            if request.is_json:
+                return jsonify(
+                    redirectTo=url_for("dashboard")
+                )
+
+            return redirect(url_for("dashboard"))
 
         if request.is_json:
-            return jsonify(message='Invalid email or password.'), 401
-        flash('Invalid email or password.')
-        return redirect(url_for('login'))
+            return jsonify(
+                message="Invalid email or password."
+            ), 401
 
-    return render_template('login.html')
+        flash("Invalid email or password.")
+        return redirect(url_for("login"))
+
+    return render_template("login.html")
 
 
-if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(
+        debug=os.environ.get("FLASK_DEBUG") == "1"
+    )
