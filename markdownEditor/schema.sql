@@ -1,15 +1,8 @@
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL
-);
+from pathlib import Path
+import sqlite3
 
-CREATE TABLE IF NOT EXISTS documents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL DEFAULT 'Untitled',
-    content TEXT NOT NULL DEFAULT '',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "your_database_file.db"  # use the same path your app already uses
+
+with sqlite3.connect(DB_PATH) as conn:
+    conn.executescript((BASE_DIR / "schema.sql").read_text())
