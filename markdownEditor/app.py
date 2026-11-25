@@ -1,4 +1,3 @@
-
 import importlib
 import os
 
@@ -25,11 +24,37 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-
 app = Flask(__name__)
 
-app.secret_key = os.urandom(32)
+def get_secret_key():
+    secret_key = os.environ.get("SECRET_KEY")
+    if secret_key:
+        return secret_key
 
+    os.makedirs(app.instance_path, exist_ok=True)
+    secret_key_path = os.path.join(app.instance_path, "secret_key")
+
+    try:
+        with open(secret_key_path, "x", encoding="ascii") as secret_key_file:
+            secret_key_file.write(os.urandom(32).hex())
+    except FileExistsError:
+        pass
+
+    with open(secret_key_path, "r", encoding="ascii") as secret_key_file:
+        secret_key = secret_key_file.read().strip()
+
+    if not secret_key:
+        raise RuntimeError("The persisted Flask secret key is empty.")
+
+    return secret_key
+
+app.secret_key = get_secret_key()
+
+def normalize_database_url(url):
+    # Render gives postgres:// but psycopg wants postgresql://
+    if url and url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
 
 def get_db_connection():
     if psycopg is None:
@@ -37,16 +62,64 @@ def get_db_connection():
             "The PostgreSQL driver is not installed. Install psycopg[binary]."
         )
 
-    database_url = os.environ.get("DATABASE_URL")
+    database_url = normalize_database_url(os.environ.get("DATABASE_URL"))
 
     if not database_url:
         raise RuntimeError("DATABASE_URL environment variable is not set.")
+
+    # Render Postgres needs SSL
+    if "sslmode=" not in database_url:
+        separator = "&" if "?" in database_url else "?"
+        database_url = f"{database_url}{separator}sslmode=require"
 
     return psycopg.connect(
         database_url,
         row_factory=dict_row
     )
 
+def init_db():
+    """Create tables if they don't exist. Prevents 500 on first login/signup."""
+    if psycopg is None:
+        return
+    if not os.environ.get("DATABASE_URL"):
+        return
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS public.users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS public.documents (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+                title TEXT NOT NULL DEFAULT 'Untitled',
+                content TEXT NOT NULL DEFAULT '',
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+# Run once on startup so Render doesn't 500 when tables are missing
+try:
+    init_db()
+except Exception as e:
+    # Don't crash boot, but log it so Render Logs shows it
+    print(f"[init_db] failed: {e}", flush=True)
+
+@app.errorhandler(500)
+def handle_500(e):
+    # Render LogsにTracebackを残す
+    import traceback
+    traceback.print_exc()
+    return "Internal Server Error - check Render Logs", 500
 
 def get_current_user():
     user_id = session.get("user_id")
@@ -65,7 +138,6 @@ def get_current_user():
             """,
             (user_id,)
         ).fetchone()
-
     finally:
         conn.close()
 
@@ -75,7 +147,6 @@ def get_current_user():
 
     return user
 
-
 @app.route("/")
 def index():
     if get_current_user() is not None:
@@ -83,11 +154,9 @@ def index():
 
     return render_template("home.html")
 
-
 @app.route("/home.html")
 def home_page():
     return render_template("home.html")
-
 
 @app.route("/dashboard")
 def dashboard():
@@ -108,7 +177,6 @@ def dashboard():
             """,
             (user["id"],)
         ).fetchall()
-
     finally:
         conn.close()
 
@@ -118,11 +186,9 @@ def dashboard():
         documents=documents
     )
 
-
 @app.route("/demo")
 def demo():
     return render_template("demo.html")
-
 
 @app.route("/editor")
 def editor():
@@ -164,7 +230,6 @@ def editor():
                 """,
                 (user["id"],)
             ).fetchone()
-
     finally:
         conn.close()
 
@@ -173,7 +238,6 @@ def editor():
         current_user=user,
         document=document
     )
-
 
 @app.route("/documents", methods=["POST"])
 def save_document():
@@ -263,7 +327,6 @@ def save_document():
         title=title
     ), 200
 
-
 @app.route("/documents", methods=["GET"])
 def list_documents():
     user = get_current_user()
@@ -285,7 +348,6 @@ def list_documents():
             """,
             (user["id"],)
         ).fetchall()
-
     finally:
         conn.close()
 
@@ -294,12 +356,11 @@ def list_documents():
             {
                 "id": document["id"],
                 "title": document["title"],
-                "updated_at": document["updated_at"].isoformat()
+                "updated_at": document["updated_at"].isoformat() if document["updated_at"] else None
             }
             for document in documents
         ]
     )
-
 
 @app.route("/documents/<int:document_id>", methods=["GET"])
 def get_document(document_id):
@@ -321,7 +382,6 @@ def get_document(document_id):
             """,
             (document_id, user["id"])
         ).fetchone()
-
     finally:
         conn.close()
 
@@ -336,13 +396,10 @@ def get_document(document_id):
         content=document["content"]
     )
 
-
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
-
     return redirect(url_for("index"))
-
 
 @app.route("/account", methods=["POST"])
 def update_account():
@@ -429,9 +486,7 @@ def update_account():
         conn.close()
 
     flash("Your account has been updated.")
-
     return redirect(url_for("editor"))
-
 
 @app.route("/account/delete", methods=["POST"])
 def delete_account():
@@ -487,11 +542,8 @@ def delete_account():
         conn.close()
 
     session.clear()
-
     flash("Your account has been deleted.")
-
     return redirect(url_for("index"))
-
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -530,7 +582,7 @@ def signup():
             return redirect(url_for("signup"))
 
         name = name.strip()
-        email = email.strip()
+        email = email.strip().lower()
 
         if not name or not email or not password:
             if is_json:
@@ -587,7 +639,6 @@ def signup():
 
     return render_template("signup.html")
 
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -601,7 +652,7 @@ def login():
             data.get("email", "")
             if hasattr(data, "get")
             else ""
-        ).strip()
+        ).strip().lower()
 
         password = (
             data.get("password", "")
@@ -623,17 +674,16 @@ def login():
         try:
             user = conn.execute(
                 """
-                SELECT *
+                SELECT id, name, email, password_hash
                 FROM public.users
                 WHERE email = %s
                 """,
                 (email,)
             ).fetchone()
-
         finally:
             conn.close()
 
-        if user and check_password_hash(
+        if user and user.get("password_hash") and check_password_hash(
             user["password_hash"],
             password
         ):
@@ -656,7 +706,6 @@ def login():
         return redirect(url_for("login"))
 
     return render_template("login.html")
-
 
 if __name__ == "__main__":
     app.run(
