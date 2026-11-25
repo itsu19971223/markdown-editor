@@ -10,13 +10,12 @@ A fast, lightweight, and user-friendly web-based Markdown editor that allows use
 Real-time Markdown editing
 Live preview pane
 Instant rendering
-Export content as Markdown files
-Auto-save support (optional)
-Dark mode support
-Responsive design for desktop and mobile devices
-Keyboard shortcuts
+Export content as Markdown or txt files
+Dark mode support (Building)
+Responsive design for desktop and mobile devices (Building)
+Keyboard shortcuts (Building)
 Syntax highlighting
-Copy rendered HTML or Markdown
+
 
 ## Demo
 
@@ -33,7 +32,7 @@ JavaScript,
 SQL 
 and
 Python
-
+(backend for account creation/signin feature)
 ## Usage
 
 
@@ -64,7 +63,7 @@ If you discover a bug, please create an issue and include:
 Description of the problem
 Steps to reproduce
 Expected behavior
-Screenshots, if applicable
+Screenshots (optional)
 ## License
 
 
