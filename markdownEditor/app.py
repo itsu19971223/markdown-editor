@@ -1,8 +1,17 @@
 
+import importlib
 import os
 
-import psycopg
-from psycopg.rows import dict_row
+try:
+    psycopg = importlib.import_module("psycopg")
+    dict_row = importlib.import_module("psycopg.rows").dict_row
+    IntegrityError = psycopg.IntegrityError
+except ModuleNotFoundError:
+    psycopg = None
+    dict_row = None
+
+    class IntegrityError(Exception):
+        pass
 
 from flask import (
     Flask,
@@ -14,7 +23,6 @@ from flask import (
     session,
     url_for,
 )
-from psycopg import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -24,6 +32,11 @@ app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
 
 
 def get_db_connection():
+    if psycopg is None:
+        raise RuntimeError(
+            "The PostgreSQL driver is not installed. Install psycopg[binary]."
+        )
+
     database_url = os.environ.get("DATABASE_URL")
 
     if not database_url:
