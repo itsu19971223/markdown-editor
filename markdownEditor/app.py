@@ -28,7 +28,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 
-app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.secret_key = os.urandom(32)
 
 
 def get_db_connection():
